@@ -1,0 +1,101 @@
+= Workshop Overview
+:navtitle: Workshop Overview
+:toc: macro
+:toclevels: 1
+:icons: font
+
+toc::[]
+
+== Introduction
+
+The GPU Booking Plugin is an OpenShift Console extension that enables users to reserve GPU resources for AI/ML workloads. It provides a visual calendar interface for booking NVIDIA H200 GPUs and MIG (Multi-Instance GPU) partitions, with automatic integration to the Kueue job queueing system.
+
+== Why GPU Booking?
+
+In multi-tenant GPU clusters, resource contention is a common challenge:
+
+* **Overcommitment**: Multiple users submit workloads expecting GPU availability
+* **Resource starvation**: Important jobs get stuck waiting for resources
+* **Lack of visibility**: Users cannot see what resources are available when
+* **Manual coordination**: Teams use spreadsheets or chat to coordinate usage
+
+The GPU Booking Plugin solves these problems by providing:
+
+* **Advance reservations**: Book GPU resources days or weeks ahead
+* **Visual calendar**: See availability at a glance
+* **Automatic Kueue integration**: Active workloads are tracked automatically
+* **Fair sharing**: MIG partitioning allows multiple users to share physical GPUs
+
+== Key Features
+
+=== Resource Types
+
+The plugin manages a pool of NVIDIA H200 GPUs with MIG partitioning:
+
+[cols="2,1,1,1",options="header"]
+|===
+|Resource |Type |Units |GPU Equivalent
+
+|H200 Full GPU |nvidia.com/gpu |8 |1.0
+|MIG 3g.71gb |nvidia.com/mig-3g.71gb |8 |0.5
+|MIG 2g.35gb |nvidia.com/mig-2g.35gb |8 |0.25
+|MIG 1g.18gb |nvidia.com/mig-1g.18gb |16 |0.125
+|===
+
+=== Booking Capabilities
+
+* **Flexible date ranges**: Book single days or multiple consecutive days
+* **Hour-level granularity**: Book full days or specific hour windows
+* **Multi-resource booking**: Reserve multiple GPU types in a single operation
+* **Bulk operations**: Cancel all your bookings at once
+* **Override capability**: Take priority over auto-booked Kueue workloads
+
+=== Admin Features
+
+* **Centralized dashboard**: View all bookings across the cluster
+* **Database management**: Export and import booking data
+* **Sync control**: Enable/disable Kueue reservation sync at runtime
+* **RBAC integration**: Admin access controlled via OpenShift permissions
+
+== Architecture Overview
+
+The GPU Booking Plugin consists of:
+
+[source,text]
+----
+┌─────────────────────────────────────────────────────────┐
+│                    OpenShift Console                    │
+│              (PatternFly/React Frontend)                │
+└─────────────────────────────────────────────────────────┘
+                           │
+                           │ ConsolePlugin proxy
+                           ▼
+┌─────────────────────────────────────────────────────────┐
+│                GPU Booking Plugin Pod                   │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐  │
+│  │ Go Backend  │  │  React UI   │  │   SQLite DB     │  │
+│  │   (API)     │  │   (dist)    │  │  (persistent)   │  │
+│  └─────────────┘  └─────────────┘  └─────────────────┘  │
+└─────────────────────────────────────────────────────────┘
+                           │
+                           │ Watches
+                           ▼
+┌─────────────────────────────────────────────────────────┐
+│                 OpenShift / Kubernetes                  │
+│           (Kueue LocalQueues, ClusterQueues)            │
+└─────────────────────────────────────────────────────────┘
+----
+
+== Workshop Flow
+
+In this workshop, you will:
+
+1. **Explore the architecture** - Understand how the components work together
+2. **Deploy the plugin** - Install via Helm chart to your cluster
+3. **Create bookings** - Use the calendar interface to reserve GPU resources
+4. **Learn Kueue integration** - Understand auto-bookings and workload tracking
+5. **Administer the system** - Manage bookings and configure the plugin
+
+== Next Steps
+
+Proceed to xref:getting-connected.adoc[Getting Connected] to log in to your OpenShift cluster and verify the environment.

@@ -1,0 +1,22 @@
+name: modules
+title: "GPU Booking Plugin Workshop"
+version: ~
+nav:
+  - modules/ROOT/nav.adoc
+
+asciidoc:
+  attributes:
+    source-highlighter: highlight.js
+    experimental: true
+    page-pagination: true
+    lab_name: "GPU Booking Plugin Workshop"
+    # Environment-specific — Showroom platform overrides these at deploy time
+    user: user-abc123
+    password: "%password%"
+    openshift_api_url: "https://api.cluster.example.com:6443"
+    openshift_console_url: "https://console-openshift-console.apps.cluster.example.com"
+    openshift_cluster_ingress_domain: apps.cluster.example.com
+    # Workshop-specific attributes
+    gpu_booking_namespace: gpu-booking
+    gpu_booking_plugin_name: gpu-booking-plugin
+    gpu_booking_image: quay.io/eformat/gpu-booking-plugin:latest

@@ -1,0 +1,250 @@
+= Module 3: Creating Bookings
+:navtitle: Module 3: Creating Bookings
+:toc: macro
+:toclevels: 1
+:icons: font
+
+toc::[]
+
+== Introduction
+
+In this module, you will learn how to create and manage GPU bookings through the OpenShift Console. You will reserve different types of GPU resources and understand how the booking system works.
+
+== Understanding the Interface
+
+The GPU Booking interface consists of:
+
+* **Header**: Shows current time, help link, My Bookings button, and refresh control
+* **Resource Selector**: Cards to choose which GPU types to view
+* **Mini Calendar**: Month view for selecting dates
+* **GPU Usage Overview**: Visual representation of resource utilization
+* **Booking Grid**: Detailed table showing available and booked slots
+
+== Exercise 1: Create Your First Booking
+
+Let's create a simple GPU booking for tomorrow.
+
+. In the OpenShift Console, navigate to *GPU Booking → Bookings*.
+
+. In the mini-calendar, click on tomorrow's date to select it.
+
+. Right-click on the selected date and choose *Book GPU* from the context menu.
+
+. In the booking dialog:
+** The Date Range should show tomorrow's date
+** Leave Hours as default (full day: 00:00 to 00:00+1)
+** Set **H200 Full GPU** to 1 unit
+** Add a description like "My first GPU booking"
+** Click the **Book** button
+
+. Wait for the confirmation that your booking was created.
+
+. Observe the booking grid update — your booking should appear as a colored cell.
+
+=== Verify
+
+✓ Booking dialog opens without errors +
+✓ Booking is created successfully +
+✓ Booking appears in the grid
+
+== Exercise 2: Create a Multi-Day Booking
+
+Now let's book a resource for multiple consecutive days.
+
+. In the mini-calendar, select a date range (Shift+click to select multiple days):
+** Click on a date in the future
+** Shift+click on a date 3 days later
+
+. Right-click on one of the selected dates and choose *Book GPU*.
+
+. In the booking dialog:
+** Verify the Date Range shows your multi-day selection
+** Select **MIG 3g.71gb** with 2 units
+** Add a description like "Multi-day model training"
+** Click **Book**
+
+. Verify the booking appears across all selected dates in the grid.
+
+TIP: You can also create multi-day bookings by manually editing the date range fields in the booking dialog, without using the calendar selection.
+
+=== Verify
+
+✓ Multiple dates selected in calendar +
+✓ Date range reflects selection in dialog +
+✓ Booking spans all selected dates
+
+== Exercise 3: Book Specific Hours
+
+Bookings can be for specific hours, not just full days.
+
+. Select a date in the mini-calendar.
+
+. Open the booking dialog (right-click → Book GPU).
+
+. Change the Hours fields:
+** Start: 09:00
+** End: 17:00
+
+. Notice the UTC equivalent displayed below the hours fields.
+
+. Select **MIG 1g.18gb** with 1 unit for development work.
+
+. Add a description and click **Book**.
+
+. In the booking grid, hover over your booking to see the hour range displayed.
+
+=== Verify
+
+✓ Hour range is reflected in the booking dialog +
+✓ UTC conversion is shown correctly +
+✓ Booking is created with specific hours
+
+== Exercise 4: Multi-Resource Booking
+
+You can book multiple different GPU types in a single operation.
+
+. Select a date range (2-3 days).
+
+. Open the booking dialog.
+
+. Set multiple resource types:
+** H200 Full GPU: 1
+** MIG 2g.35gb: 2
+
+. Observe the GPU Equivalent total — it should show 1.5 (1.0 + 2×0.25).
+
+. Add a description like "Distributed training job".
+
+. Click **Book**.
+
+. Verify both resource types show bookings in their respective grids.
+
+TIP: The GPU Equivalent metric helps you understand the total capacity impact of your booking. One H200 Full GPU equals 1.0 equivalent.
+
+=== Verify
+
+✓ Multiple resources selected in dialog +
+✓ GPU Equivalent total calculated correctly +
+✓ Bookings created for all selected resource types
+
+== Exercise 5: Edit a Booking
+
+You can modify existing bookings.
+
+. Find one of your bookings in the grid (hover to see the Edit button).
+
+. Click the **Edit** button on your booking.
+
+. In the edit dialog:
+** Change the description
+** Adjust the resource count
+** Click **Save Changes**
+
+. Verify the booking reflects your changes.
+
+IMPORTANT: Editing a booking actually cancels the original and creates a new one. This allows changing resource types, dates, and hours.
+
+=== Verify
+
+✓ Edit dialog opens with current values +
+✓ Changes are saved successfully +
+✓ Booking grid updates to reflect changes
+
+== Exercise 6: Cancel a Booking
+
+Let's cancel one of your bookings.
+
+. Find a booking you want to cancel in the grid.
+
+. Hover over the booking and click the **Cancel** button.
+
+. Confirm the cancellation in the dialog that appears.
+
+. Verify the booking disappears from the grid.
+
+NOTE: You can only cancel your own reserved bookings. Consumed (Kueue) bookings and other users' bookings cannot be cancelled through the UI.
+
+=== Verify
+
+✓ Cancel button appears on hover +
+✓ Confirmation dialog appears +
+✓ Booking is removed after confirmation
+
+== Exercise 7: My Bookings View
+
+Use the My Bookings feature to see all your reservations.
+
+. Click the **My Bookings** button in the header.
+
+. Observe that:
+** All dates with your bookings are selected
+** The button turns red/coral to indicate active mode
+** The calendar navigates to the earliest month with your bookings
+
+. Click **My Bookings** again to return to the current date view.
+
+This feature is useful when you have bookings spread across multiple months and want to review them all.
+
+=== Verify
+
+✓ All your booking dates are highlighted +
+✓ Grid shows all your bookings +
+✓ My Bookings button toggles the view
+
+== Exercise 8: Bulk Cancel Bookings
+
+If you need to cancel multiple bookings at once, use the bulk cancel feature.
+
+. Click **My Bookings** to show all your reservations.
+
+. Observe the **Cancel All (N)** button that appears near the resource selector.
+
+. Click **Cancel All**.
+
+. Review the confirmation dialog showing how many bookings will be cancelled.
+
+. Click **Confirm** to proceed, or **No** to cancel.
+
+TIP: You can filter by resource type before bulk cancelling. Deselect resources you want to keep, and only the selected resource type bookings will be cancelled.
+
+=== Verify
+
+✓ Cancel All button shows correct count +
+✓ Confirmation dialog lists bookings to cancel +
+✓ Selected bookings are removed
+
+== Understanding Availability
+
+=== How Availability is Calculated
+
+The booking system tracks availability per resource type, per date, per hour range:
+
+[source,text]
+----
+Available = Total Units - Reserved Bookings - Your Current Selection
+----
+
+NOTE: Consumed (Kueue) bookings do NOT block your reservations. They can be overridden and are shown in the availability count as available.
+
+=== Visual Indicators
+
+* **Red badge on calendar date**: That day is fully booked
+* **Gray cells in grid**: Past dates (read-only)
+* **Colored cells**: Booked slots (color varies by owner)
+* **Green cells**: Your bookings
+
+== Module Summary
+
+In this module, you learned how to:
+
+* Create single-day and multi-day bookings
+* Book specific hour ranges
+* Create multi-resource bookings in one operation
+* Edit existing bookings
+* Cancel individual and bulk bookings
+* Use the My Bookings view for overview
+* Understand availability calculation
+
+== Next Steps
+
+Now that you can create bookings, proceed to xref:05-module-04-kueue.adoc[Module 4: Kueue Integration] to understand how the plugin works with active workloads.

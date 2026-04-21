@@ -1,0 +1,180 @@
+= Getting Connected
+:navtitle: Getting Connected
+:toc: macro
+:toclevels: 1
+:icons: font
+
+toc::[]
+
+== Introduction
+
+Before we deploy and use the GPU Booking Plugin, you need to connect to your OpenShift cluster and verify that your environment is properly configured.
+
+== Exercise 1: Log in to OpenShift
+
+. Open a terminal and log in to your OpenShift cluster using the provided credentials:
++
+[.copypaste]
+[source,bash,subs="attributes"]
+----
+oc login {openshift_api_url} -u {user} -p {password}
+----
+
+. Verify your login was successful:
++
+[.copypaste]
+[source,bash]
+----
+oc whoami
+----
++
+You should see your username displayed.
+
+. Check that you can view the cluster nodes:
++
+[.copypaste]
+[source,bash]
+----
+oc get nodes
+----
+
+=== Verify
+
+✓ You are logged in as `{user}` +
+✓ You can see the cluster nodes
+
+== Exercise 2: Verify GPU Resources
+
+The GPU Booking Plugin requires NVIDIA GPUs with MIG support. Let's verify your cluster has the necessary resources.
+
+. Check if the NVIDIA GPU Operator is installed:
++
+[.copypaste]
+[source,bash]
+----
+oc get pods -n nvidia-gpu-operator
+----
+
+. Look for nodes with GPU capacity:
++
+[.copypaste]
+[source,bash]
+----
+oc describe nodes | grep -A 5 "nvidia.com/gpu"
+----
+
+. Check for MIG-capable GPUs (H200):
++
+[.copypaste]
+[source,bash]
+----
+oc get nodes -o yaml | grep -i "nvidia.com/mig"
+----
+
+NOTE: If you don't see GPU resources, contact your cluster administrator to ensure the NVIDIA GPU Operator is installed and MIG is configured.
+
+=== Verify
+
+✓ NVIDIA GPU Operator pods are running (if installed) +
+✓ Nodes report nvidia.com/gpu capacity +
+✓ MIG resources are available (nvidia.com/mig-*)
+
+== Exercise 3: Verify Kueue Installation
+
+The GPU Booking Plugin integrates with Kueue for workload queueing. Verify Kueue is installed on your cluster.
+
+. Check if Kueue components are running:
++
+[.copypaste]
+[source,bash]
+----
+oc get pods -n kueue-system
+----
+
+. Verify Kueue CRDs are present:
++
+[.copypaste]
+[source,bash]
+----
+oc get crd | grep kueue
+----
+
+. Look for existing ClusterQueues (if any):
++
+[.copypaste]
+[source,bash]
+----
+oc get clusterqueues.kueue.x-k8s.io
+----
+
+=== Verify
+
+✓ Kueue controller pods are running (if installed) +
+✓ Kueue CRDs are present +
+✓ Kueue API is accessible
+
+== Exercise 4: Create Project Namespace
+
+You will deploy the GPU Booking Plugin to a dedicated namespace.
+
+. Create the project namespace:
++
+[.copypaste]
+[source,bash,subs="attributes"]
+----
+oc new-project {gpu_booking_namespace}
+----
+
+. Verify the project was created:
++
+[.copypaste]
+[source,bash]
+----
+oc project
+----
+
+. Switch to the admin perspective in the OpenShift Console to verify you can see the project.
+
+=== Verify
+
+✓ Namespace `{gpu_booking_namespace}` exists +
+✓ You are currently using the `{gpu_booking_namespace}` project +
+✓ Project appears in the OpenShift Console project list
+
+== Exercise 5: Verify Helm Installation
+
+You will use Helm to deploy the GPU Booking Plugin. Verify Helm is available.
+
+. Check if Helm is installed:
++
+[.copypaste]
+[source,bash]
+----
+helm version
+----
+
+. If Helm is not installed, install it:
++
+[.copypaste]
+[source,bash]
+----
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+----
+
+. Verify you can access the cluster with Helm:
++
+[.copypaste]
+[source,bash]
+----
+helm list
+----
+
+=== Verify
+
+✓ Helm client is installed and version 3.x +
+✓ Helm can connect to the cluster +
+✓ No errors when running helm commands
+
+== Next Steps
+
+Your environment is ready. Proceed to xref:02-module-01-architecture.adoc[Module 1: Architecture] to learn about the GPU Booking Plugin's technical design.

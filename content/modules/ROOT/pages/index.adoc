@@ -1,0 +1,60 @@
+= GPU Booking Plugin Workshop
+:navtitle: Welcome
+:page-layout: default
+
+Welcome to the GPU Booking Plugin Workshop. In this hands-on workshop, you will learn how to deploy, configure, and use the GPU Booking Plugin for OpenShift — a complete solution for managing GPU resource reservations with Kueue integration.
+
+== What You Will Learn
+
+By the end of this workshop, you will be able to:
+
+* Understand the GPU Booking Plugin architecture (Go backend + React/PatternFly frontend)
+* Deploy the plugin to OpenShift using Helm
+* Create and manage GPU bookings through the OpenShift Console
+* Understand Kueue integration for automatic workload tracking
+* Administer the booking system including quota management
+
+== Who This Is For
+
+This workshop is designed for:
+
+* **Platform Engineers** responsible for GPU infrastructure on OpenShift
+* **ML Engineers** who need to reserve GPU resources for training and inference workloads
+* **Cluster Administrators** managing multi-tenant GPU clusters
+* **Developers** building OpenShift Console plugins
+
+== Prerequisites
+
+Before starting this workshop, you should have:
+
+* Basic familiarity with OpenShift and kubectl/oc commands
+* Understanding of Kubernetes concepts (Pods, Services, ConfigMaps)
+* A cluster with NVIDIA GPUs and MIG support configured
+* OpenShift 4.14+ with the console enabled
+
+== Estimated Time
+
+This workshop takes approximately **2 hours** to complete.
+
+== Getting Started
+
+Ready to begin? Start with the workshop overview to understand the GPU Booking Plugin's purpose and capabilities.
+
+xref:01-overview.adoc[Start the Workshop →]
+
+== Workshop Structure
+
+.Overview:: Learn what the GPU Booking Plugin is and why it exists
+.Getting Connected:: Log in to your OpenShift cluster and verify access
+.Module 1: Architecture:: Understand the technical architecture
+.Module 2: Deployment:: Deploy the plugin using Helm
+.Module 3: Creating Bookings:: Create and manage GPU reservations
+.Module 4: Kueue Integration:: Understand auto-bookings and workload tracking
+.Module 5: Administration:: Administer the booking system
+.Conclusion:: Review what you learned and explore next steps
+
+== Additional Resources
+
+* https://docs.openshift.com/container-platform/4.15/web_console/dynamic-plugin/overview-dynamic-plugin.html[OpenShift Dynamic Plugins Documentation^]
+* https://kueue.sigs.k8s.io/docs/[Kueue Documentation^]
+* https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/[NVIDIA GPU Operator Documentation^]

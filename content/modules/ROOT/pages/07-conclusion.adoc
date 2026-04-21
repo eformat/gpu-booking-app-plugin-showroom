@@ -1,0 +1,104 @@
+= Conclusion
+:navtitle: Conclusion
+:icons: font
+
+== Workshop Summary
+
+Congratulations! You have completed the GPU Booking Plugin Workshop. Let's review what you accomplished.
+
+=== What You Learned
+
+[cols="1,3",options="header"]
+|===
+|Module |Key Takeaways
+
+|Overview
+|Understanding of the GPU Booking Plugin's purpose, features, and use cases in multi-tenant GPU clusters
+
+|Architecture
+|The plugin consists of a React/PatternFly frontend, Go backend API, SQLite database, and integrates with OpenShift Console via dynamic plugins
+
+|Deployment
+|Deploying with Helm, configuring GPU resources, setting up RBAC, and verifying plugin registration
+
+|Creating Bookings
+|Single-day, multi-day, and hourly bookings; multi-resource reservations; editing and canceling bookings
+
+|Kueue Integration
+|Auto-bookings from active workloads, overriding consumed bookings, priority rules, and reservation management
+
+|Administration
+|Dashboard navigation, filtering, database export/import, sync control, and CLI monitoring
+|===
+
+== Key Concepts Remember
+
+=== GPU Resource Types
+
+* **H200 Full GPU** (1.0 equivalent): Full GPU for large training jobs
+* **MIG 3g.71gb** (0.5 equivalent): Medium workloads and inference
+* **MIG 2g.35gb** (0.25 equivalent): Smaller training and inference
+* **MIG 1g.18gb** (0.125 equivalent): Notebooks, development, experiments
+
+=== Booking Priorities
+
+1. Reserved bookings always win over consumed bookings
+2. First-come-first-served for reserved-vs-reserved conflicts
+3. Consumed bookings (Kueue) can be overridden but may trigger preemption
+
+=== Architecture Components
+
+[source,text]
+----
+OpenShift Console ←→ ConsolePlugin Proxy ←→ Go Backend API
+                                              ↓
+                                        SQLite Database
+                                              ↓
+                                   Kueue ClusterQueues/
+                                   LocalQueues
+----
+
+== Next Steps
+
+=== Try It Yourself
+
+* Deploy the GPU Booking Plugin on your own cluster
+* Customize the GPU configuration for your hardware
+* Integrate with your existing Kueue setup
+* Extend the plugin with additional features
+
+=== Explore the Code
+
+The GPU Booking Plugin is open source. Explore and contribute:
+
+* https://github.com/eformat/gpu-booking-app-plugin[GPU Booking App Plugin on GitHub^]
+* Review the React components for UI customization
+* Extend the Go backend with new API endpoints
+* Add support for additional GPU types
+
+=== Additional Resources
+
+* https://docs.openshift.com/container-platform/4.15/web_console/dynamic-plugin/overview-dynamic-plugin.html[OpenShift Dynamic Plugins Documentation^]
+* https://kueue.sigs.k8s.io/docs/[Kueue Documentation^]
+* https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/[NVIDIA GPU Operator^]
+* https://www.patternfly.org/[PatternFly Design System^]
+
+=== Related Workshops
+
+* OpenShift AI Administration
+* Kubernetes Job Scheduling with Kueue
+* Multi-Tenant GPU Cluster Management
+
+== Feedback
+
+We hope you found this workshop valuable. If you have feedback or suggestions for improvement, please:
+
+* Open an issue on the workshop repository
+* Contact your workshop facilitator
+* Share your experience with the community
+
+== Thank You
+
+Thank you for participating in the GPU Booking Plugin Workshop. You now have the knowledge and skills to deploy, configure, and manage GPU resource reservations in OpenShift environments.
+
+Happy GPU booking!

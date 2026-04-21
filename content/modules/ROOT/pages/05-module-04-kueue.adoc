@@ -1,0 +1,347 @@
+= Module 4: Kueue Integration
+:navtitle: Module 4: Kueue Integration
+:toc: macro
+:toclevels: 1
+:icons: font
+
+toc::[]
+
+== Introduction
+
+The GPU Booking Plugin integrates with Kueue, a Kubernetes-native job queueing system, to provide automatic tracking of GPU resources consumed by active workloads. This integration ensures that the booking system always reflects actual resource usage.
+
+== What is Kueue?
+
+Kueue is a Kubernetes-native job queueing system that:
+
+* Manages GPU quota and workload scheduling
+* Controls which workloads run, when, and on what resources
+* Implements fair sharing and preemption policies
+* Provides ClusterQueue and LocalQueue abstractions for resource management
+
+== Understanding Auto-Bookings
+
+=== How Auto-Bookings Work
+
+The GPU Booking Plugin runs a background sync process that:
+
+1. Polls all LocalQueues in the cluster every 30 seconds (configurable)
+2. Reads `flavorUsage` to determine GPU resource consumption
+3. Creates "consumed" bookings for active workloads
+4. Manages per-user ClusterQueues for reserved quota
+
+=== Visual Differences
+
+Auto-bookings (created by Kueue sync) have distinct visual indicators:
+
+[cols="2,3",options="header"]
+|===
+|Indicator |Meaning
+
+|Lightning bolt icon |This slot was auto-booked by Kueue
+|Amber "Override" button |Can be replaced with a reserved booking
+|Namespace/owner name |Shows which project owns the workload
+|Green color in usage panel |Consumed bookings in GPU Usage Overview
+|===
+
+== Exercise 1: Submit a GPU Workload
+
+Let's create a GPU workload and see it appear as a consumed booking.
+
+. Create a namespace for your workload:
++
+[.copypaste]
+[source,bash,subs="attributes"]
+----
+oc new-project {user}-workload
+----
+
+. Create a LocalQueue for your namespace:
++
+[.copypaste]
+[source,bash,subs="attributes"]
+----
+cat > ~/localqueue.yaml << 'EOF'
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: LocalQueue
+metadata:
+  name: default
+  namespace: {user}-workload
+spec:
+  clusterQueue: cluster-queue
+EOF
+oc apply -f ~/localqueue.yaml
+----
+
+NOTE: Adjust the `clusterQueue` name to match your cluster's Kueue configuration.
+
+. Create a simple GPU workload:
++
+[.copypaste]
+[source,bash,subs="attributes"]
+----
+cat > ~/gpu-job.yaml << 'EOF'
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gpu-test-job
+  namespace: {user}-workload
+  labels:
+    kueue.x-k8s.io/queue-name: default
+spec:
+  template:
+    spec:
+      containers:
+      - name: gpu-container
+        image: nvidia/cuda:12.0-base-ubi8
+        command: ["nvidia-smi"]
+        resources:
+          limits:
+            nvidia.com/gpu: "1"
+      restartPolicy: Never
+EOF
+oc apply -f ~/gpu-job.yaml
+----
+
+. Check that the job is running:
++
+[.copypaste]
+[source,bash,subs="attributes"]
+----
+oc get pods -n {user}-workload
+----
+
+=== Verify
+
+✓ Namespace created +
+✓ LocalQueue created and admitted to ClusterQueue +
+✓ Job is running or completed
+
+== Exercise 2: Observe Auto-Bookings in the Console
+
+Now let's see the auto-booking appear in the GPU Booking interface.
+
+. In the OpenShift Console, navigate to *GPU Booking → Bookings*.
+
+. Select today's date in the mini-calendar.
+
+. Select the **H200 Full GPU** resource type.
+
+. Look for a booking cell with:
+** A lightning bolt icon
+** Your namespace name (`{user}-workload`)
+** An amber **Override** button
+
+. Hover over the booking to see additional details:
+** The owner is derived from the namespace's `rhai-tmm.dev/owner` label, or falls back to the namespace name
+
+=== Verify
+
+✓ Auto-booking appears in the grid +
+✓ Lightning bolt icon is visible +
+✓ Namespace name is displayed correctly
+
+== Exercise 3: Check GPU Usage Overview
+
+The GPU Usage Overview panel shows the breakdown of consumed vs. reserved resources.
+
+. With today's date selected, look at the GPU Usage Overview panel.
+
+. Identify the stacked bar for H200 Full GPU:
+** Red portion: Reserved (user-created) bookings
+** Green portion: Consumed (Kueue) bookings
+** Gray portion: Free/available resources
+
+. Hover over the individual dots below the bar to see who owns each unit.
+
+. Check if your consumed booking appears in the green portion.
+
+=== Verify
+
+✓ GPU Usage Overview displays stacked bars +
+✓ Consumed bookings appear in green +
+✓ Hover shows ownership information
+
+== Exercise 4: Override a Consumed Booking
+
+When you need guaranteed access to a resource that is currently in use, you can override the consumed booking.
+
+WARNING: Overriding a consumed booking may cause a running workload to be preempted. The workload will be re-queued and can resume when resources become available.
+
+. Find a consumed auto-booking in the grid (lightning bolt icon).
+
+. Click the **Override** button on the booking.
+
+. The booking dialog opens with that slot pre-selected.
+
+. Add a description like "Priority workload".
+
+. Click **Book**.
+
+. Observe what happens:
+** The auto-booking is removed
+** Your reserved booking appears in its place (different color/icon)
+** In the GPU Usage Overview, the green portion becomes red (now reserved)
+
+IMPORTANT: Reserved bookings always take priority. If you use this reserved resource, Kueue may preempt the workload that was previously using it.
+
+=== Verify
+
+✓ Override button opens booking dialog +
+✓ Original consumed booking is replaced +
+✓ New reserved booking appears
+
+== Exercise 5: Understanding Priorities
+
+=== Reserved vs. Consumed Priority
+
+The booking system implements the following priority rules:
+
+1. **Reserved bookings always win** over consumed bookings
+2. **First-come-first-served** for reserved-vs-reserved conflicts
+3. **Consuming workloads can be preempted** when reserved bookings are activated
+
+=== Preemption Flow
+
+When you override a consumed booking and then use the resource:
+
+[source,text]
+----
+1. You create a reserved booking (override)
+      ↓
+2. Kueue ClusterQueue is created with your quota
+      ↓
+3. You submit a workload to your reserved LocalQueue
+      ↓
+4. Kueue detects quota conflict
+      ↓
+5. Lowest-priority borrowing workload is preempted
+      ↓
+6. Your workload runs with protected quota
+----
+
+This ensures that users who have made advance reservations get guaranteed access.
+
+== Exercise 6: Active Reservations
+
+When your booking has an active Kubernetes reservation, the booking cell shows additional indicators.
+
+. Create a reserved booking for today with H200 Full GPU.
+
+. Check for the snake indicator with your username/namespace in the booking cell.
+
+. Look at the created Kueue resources:
++
+[.copypaste]
+[source,bash,subs="attributes"]
+----
+oc get clusterqueues.kueue.x-k8s.io | grep {user}
+----
+
+. Verify the ClusterQueue was created:
++
+[.copypaste]
+[source,bash,subs="attributes"]
+----
+oc describe clusterqueue cluster-queue-{user}
+----
+
+The ClusterQueue contains your reserved quota (GPU, CPU, and memory proportional to GPU share).
+
+=== Verify
+
+✓ Active reservation indicator visible +
+✓ ClusterQueue exists for your user +
+✓ Quota reflects your booking
+
+== Exercise 7: Reservation Expiry
+
+Reservations have automatic expiry based on your booking's end time.
+
+. Create a booking with specific hours (e.g., 14:00 to 16:00).
+
+. Check the ClusterQueue labels:
++
+[.copypaste]
+[source,bash,subs="attributes"]
+----
+oc get clusterqueue cluster-queue-{user} -o yaml | grep rhai-tmm.dev/until
+----
+
+. The `rhai-tmm.dev/until` label contains the UTC timestamp when the reservation expires.
+
+. After the booking end time passes, the ClusterQueue will be deleted automatically.
+
+TIP: Full day bookings (00:00 to 00:00+1) expire at midnight UTC.
+
+=== Verify
+
+✓ ClusterQueue has expiry label +
+✓ Label value is valid timestamp +
+✓ ClusterQueue is cleaned up after expiry
+
+== Exercise 8: Sync Configuration
+
+Administrators can control the Kueue sync behavior.
+
+. View the current sync configuration:
++
+[.copypaste]
+[source,bash,subs="attributes"]
+----
+oc get deployment {gpu_booking_plugin_name} -n {gpu_booking_namespace} -o yaml | grep -A 5 KUEUE_SYNC
+----
+
+The environment variables control:
+
+* `KUEUE_SYNC_ENABLED`: Whether sync is active (true/false)
+* `KUEUE_SYNC_INTERVAL`: Polling interval in seconds (default: 30)
+* `KUEUE_SYNC_DAYS`: How many days ahead to create consumed bookings (default: 7)
+
+. To temporarily disable sync, you would edit the deployment:
++
+[.copypaste]
+[source,bash,subs="attributes"]
+----
+oc set env deployment/{gpu_booking_plugin_name} KUEUE_SYNC_ENABLED=false -n {gpu_booking_namespace}
+----
+
+. To re-enable:
++
+[.copypaste]
+[source,bash,subs="attributes"]
+----
+oc set env deployment/{gpu_booking_plugin_name} KUEUE_SYNC_ENABLED=true -n {gpu_booking_namespace}
+----
+
+=== Verify
+
+✓ Sync configuration environment variables are set +
+✓ Can toggle sync on/off +
+✓ Changes take effect without pod restart (or with restart for some configs)
+
+== Cleanup
+
+After exploring, clean up the test workload:
+
+[.copypaste]
+[source,bash,subs="attributes"]
+----
+oc delete project {user}-workload
+----
+
+== Module Summary
+
+In this module, you learned:
+
+* How Kueue auto-bookings work and when they are created
+* How to identify consumed vs. reserved bookings visually
+* How to override consumed bookings when you need guaranteed access
+* The preemption flow when reserved bookings displace active workloads
+* How active reservations create Kueue ClusterQueues
+* How reservation expiry works with automatic cleanup
+* How administrators can configure the sync behavior
+
+== Next Steps
+
+Proceed to xref:06-module-05-admin.adoc[Module 5: Administration] to learn about managing the booking system as an administrator.

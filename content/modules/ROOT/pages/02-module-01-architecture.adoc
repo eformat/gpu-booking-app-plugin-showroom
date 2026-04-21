@@ -1,0 +1,273 @@
+= Module 1: Architecture
+:navtitle: Module 1: Architecture
+:toc: macro
+:toclevels: 1
+:icons: font
+
+toc::[]
+
+== Introduction
+
+Understanding the GPU Booking Plugin's architecture is essential for deploying, configuring, and troubleshooting the system. In this module, you will learn about the component structure, data flow, and integration points.
+
+== Component Overview
+
+The GPU Booking Plugin is a full-stack application deployed as an OpenShift Console dynamic plugin. It consists of:
+
+=== Frontend (React + PatternFly)
+
+The frontend is built with React and PatternFly components:
+
+[cols="1,3",options="header"]
+|===
+|Component |Purpose
+
+|BookingGrid |Main calendar/table view showing available/booked slots
+|CalendarGrid |Mini-calendar for date navigation
+|BookingModal |Dialog for creating and editing bookings
+|ResourceSelector |GPU type selector cards
+|GpuUsagePanel |Visual bar chart of resource utilization
+|AdminDashboard |Administrative management interface
+|===
+
+=== Backend (Go)
+
+The backend provides REST APIs and handles business logic:
+
+[cols="1,3",options="header"]
+|===
+|Package |Purpose
+
+|pkg/api |HTTP handlers for bookings, config, admin endpoints
+|pkg/database |SQLite operations for booking persistence
+|pkg/kueue |Kueue integration for workload tracking
+|pkg/models |Data structures (Booking, Config, etc.)
+|cmd/backend |Main application entry point
+|===
+
+=== Data Storage
+
+* **SQLite database**: Stores all booking records persistently
+* **PersistentVolumeClaim**: Ensures data survives pod restarts
+* **ConfigMap**: Holds GPU resource configuration
+
+== Data Flow
+
+=== Creating a Booking
+
+[source,text]
+----
+User → React UI → Console Plugin Proxy → Go Backend → SQLite
+                                              ↓
+                                         Kueue API (ClusterQueue/LocalQueue creation)
+----
+
+=== Kueue Sync Process
+
+[source,text]
+----
+Background Loop (every 30s)
+    ↓
+Poll all LocalQueues in cluster
+    ↓
+Read flavorUsage for GPU resources
+    ↓
+Create/update consumed bookings in SQLite
+    ↓
+Manage per-user ClusterQueues
+----
+
+== API Endpoints
+
+The backend exposes these REST endpoints:
+
+[cols="2,1,3",options="header"]
+|===
+|Endpoint |Method |Description
+
+|/api/config |GET |Get plugin configuration (window days, resources)
+|/api/bookings |GET |List all bookings (with filters)
+|/api/bookings |POST |Create new booking(s)
+|/api/bookings/{id} |PUT |Update a booking
+|/api/bookings/{id} |DELETE |Cancel a booking
+|/api/bookings/bulk |DELETE |Bulk cancel bookings
+|/api/admin/bookings |GET |List all bookings (admin view)
+|/api/admin/db/export |GET |Export database file
+|/api/admin/db/import |POST |Import database file
+|/api/admin/sync |POST |Toggle reservation sync
+|/api/health |GET |Health check endpoint
+|===
+
+== OpenShift Integration
+
+=== ConsolePlugin Resource
+
+The plugin registers with OpenShift through a `ConsolePlugin` custom resource:
+
+[source,yaml]
+----
+apiVersion: console.openshift.io/v1
+kind: ConsolePlugin
+metadata:
+  name: gpu-booking-plugin
+spec:
+  displayName: "GPU Booking Plugin"
+  backend:
+    type: Service
+    service:
+      name: gpu-booking-plugin
+      namespace: gpu-booking
+      port: 9443
+      basePath: "/"
+  proxy:
+    - alias: backend
+      authorization: UserToken
+      endpoint:
+        type: Service
+        service:
+          name: gpu-booking-plugin
+          namespace: gpu-booking
+          port: 9443
+----
+
+Key elements:
+
+* **Service backend**: The plugin's HTTP server
+* **Proxy endpoint**: Allows the frontend to call backend APIs with user authentication
+* **UserToken authorization**: Passes the user's OpenShift token for RBAC checks
+
+=== RBAC Integration
+
+Admin access is determined by checking if the user has permission to create `bookings` resources:
+
+[source,yaml]
+----
+apiGroups: [gpubooking.openshift.io]
+resources: [bookings]
+verbs: [create, update, delete, list]
+----
+
+Regular users can view and create their own bookings. Admin users can manage all bookings and access the admin dashboard.
+
+== Exercise 1: Explore the Plugin Code
+
+Let's examine the plugin source code structure.
+
+. Clone the gpu-booking-app-plugin repository (if not already available):
++
+[.copypaste]
+[source,bash]
+----
+cd ~ && git clone https://github.com/eformat/gpu-booking-app-plugin.git
+----
+
+. Explore the directory structure:
++
+[.copypaste]
+[source,bash]
+----
+cd ~/gpu-booking-app-plugin && tree -L 2
+----
+
+. View the console-extensions.json file:
++
+[.copypaste]
+[source,bash]
+----
+cat console-extensions.json
+----
+
+This file defines how the plugin integrates with the OpenShift console navigation and routing.
+
+=== Verify
+
+✓ You can see the plugin's directory structure +
+✓ You understand the `console-extensions.json` configuration
+
+== Exercise 2: Understand the Container Image
+
+The plugin uses a multi-stage container build. Let's examine the Containerfile.
+
+. View the Containerfile:
++
+[.copypaste]
+[source,bash]
+----
+cat ~/gpu-booking-app-plugin/Containerfile
+----
+
+Notice the three stages:
+
+1. **frontend-builder**: Builds the React app with Node.js
+2. **backend-builder**: Compiles the Go binary
+3. **Final image**: Combines the built assets with ubi-minimal
+
+. Check the installed packages in the final image:
++
+[.copypaste]
+[source,bash]
+----
+grep "microdnf install" ~/gpu-booking-app-plugin/Containerfile
+----
+
+SQLite libraries are required for the database operations.
+
+=== Verify
+
+✓ You understand the multi-stage build process +
+✓ You know which runtime dependencies are needed
+
+== Exercise 3: Review the Helm Chart
+
+The Helm chart defines how the plugin is deployed to OpenShift.
+
+. Explore the chart structure:
++
+[.copypaste]
+[source,bash]
+----
+tree ~/gpu-booking-app-plugin/chart
+----
+
+. View the values.yaml:
++
+[.copypaste]
+[source,bash]
+----
+cat ~/gpu-booking-app-plugin/chart/values.yaml
+----
+
+Key configuration values:
+
+* **replicaCount**: Number of plugin pods (typically 1 due to SQLite)
+* **persistence**: PVC for database storage
+* **kueue.syncEnabled**: Enable automatic Kueue sync
+* **gpuConfig.resources**: Definition of available GPU types
+
+. View the ConsolePlugin template:
++
+[.copypaste]
+[source,bash]
+----
+cat ~/gpu-booking-app-plugin/chart/templates/consoleplugin.yaml
+----
+
+=== Verify
+
+✓ You understand the Helm chart structure +
+✓ You know the key configuration options +
+✓ You can identify the ConsolePlugin template
+
+== Module Summary
+
+In this module, you learned:
+
+* The GPU Booking Plugin consists of a React frontend, Go backend, and SQLite database
+* It integrates with OpenShift through the ConsolePlugin dynamic plugin system
+* The plugin uses multi-stage container builds for efficiency
+* Helm charts manage the Kubernetes deployment configuration
+* Kueue integration enables automatic workload tracking
+
+== Next Steps
+
+Now that you understand the architecture, proceed to xref:03-module-02-deployment.adoc[Module 2: Deployment] to deploy the plugin to your cluster.

@@ -1,0 +1,352 @@
+= Module 5: Administration
+:navtitle: Module 5: Administration
+:toc: macro
+:toclevels: 1
+:icons: font
+
+toc::[]
+
+== Introduction
+
+The GPU Booking Plugin provides an admin dashboard for cluster administrators to manage bookings, monitor resource usage, and configure the system. In this module, you will learn how to use the admin features effectively.
+
+== Accessing the Admin Dashboard
+
+Admin access is determined by OpenShift RBAC. Users with the `gpubooking.openshift.io/bookings:admin` permission (or broader cluster-admin rights) will see the admin option in the navigation.
+
+. In the OpenShift Console, navigate to *GPU Booking → Administration*.
+
+TIP: If you don't see the Administration option, verify your RBAC permissions are correctly configured (see Module 2, Exercise 6).
+
+== Exercise 1: Explore the Admin Dashboard
+
+The admin dashboard provides a centralized view of all bookings.
+
+. Navigate to the admin dashboard.
+
+. Observe the elements:
+** **Controls Card**: Export/Import database, sync toggle, delete all
+** **Summary Tiles**: Total bookings count
+** **Resource Filter**: Filter by GPU type
+** **Source Filter**: Filter by reserved/consumed/all
+** **Text Filter**: Search by user, date, resource, description
+** **Bookings Table**: Complete list with sortable columns
+
+The table columns include:
+
+* **ID**: Unique booking identifier
+* **User**: Booking owner (OpenShift username or namespace)
+* **Resource**: GPU resource type
+* **Slot**: Slot index (0-based)
+* **Date**: Booking date (YYYY-MM-DD)
+* **Source**: Reserved (user) or Consumed (Kueue)
+* **Created**: Timestamp when created
+* **Actions**: Delete button
+
+=== Verify
+
+✓ Admin dashboard loads without errors +
+✓ All controls are visible +
+✓ Bookings table displays data
+
+== Exercise 2: Filter Bookings
+
+Learn to use the filtering capabilities to find specific bookings.
+
+. **Filter by Resource Type**:
+** Click on the **H200 Full GPU** card to show only that resource type
+** Ctrl+click to add/remove additional resource types from the filter
+
+. **Filter by Source**:
+** Click the **Reserved** button to show only user-created bookings
+** Click the **Consumed** button to show only Kueue auto-bookings
+** Click **All** to remove the source filter
+
+. **Use Text Search**:
+** Type a username in the search box to find that user's bookings
+** Search by date (YYYY-MM-DD format)
+** Search by resource type name
+
+Each filter works in combination with the others. The count shows "X of Y bookings" to indicate filter results.
+
+=== Verify
+
+✓ Resource filter updates the table +
+✓ Source filter shows correct counts in badges +
+✓ Text search filters by substring match
+
+== Exercise 3: Export the Database
+
+Create a backup of the booking database.
+
+. In the admin dashboard Controls card, click **Export DB**.
+
+. The browser will download a file named `bookings.db`.
+
+. Verify the download:
++
+[.copypaste]
+[source,bash]
+----
+ls -lh ~/Downloads/bookings.db
+----
+
+NOTE: The export process flushes the Write-Ahead Log (WAL) before streaming, ensuring a consistent snapshot.
+
+The database contains:
+
+* All booking records
+* Historical booking data
+* Created timestamps
+* User information
+
+TIP: Regular exports are recommended before making significant changes or upgrades.
+
+=== Verify
+
+✓ Database file downloads successfully +
+✓ File size is reasonable (typically KB to MB range) +
+✓ File can be inspected with SQLite tools
+
+== Exercise 4: Import a Database
+
+Import a previously exported database (use with caution).
+
+WARNING: Importing a database REPLACES all existing bookings. Export a backup first if you want to preserve current data.
+
+. In the Controls card, click the file chooser and select a previously exported `bookings.db` file.
+
+. Click **Import**.
+
+. Confirm the import in the dialog that appears.
+
+. After import, the page will refresh and show the imported bookings.
+
+Accepted formats:
+
+* `.db`
+* `.sqlite`
+* `.sqlite3`
+
+Maximum file size: 100MB
+
+TIP: This feature is useful for:
+
+* Restoring from backup after issues
+* Migrating data between clusters
+* Loading test data for demonstrations
+
+=== Verify
+
+✓ Import dialog accepts database file +
+✓ Confirmation prompt appears +
+✓ Bookings update after import
+
+== Exercise 5: Toggle Reservation Sync
+
+Control the Kueue reservation sync without redeploying the plugin.
+
+. In the Controls card, find the **Reservation Sync** toggle switch.
+
+. Observe the current state (ON or OFF).
+
+. To pause sync:
+** Click the toggle to switch it OFF
+** The server stops polling LocalQueues and managing ClusterQueues
+
+. To resume sync:
+** Click the toggle to switch it ON
+** Sync resumes from where it left off
+
+When sync is OFF:
+
+* No new consumed bookings are created
+* Existing ClusterQueues are not modified
+* New user bookings still work normally
+
+This is useful for:
+
+* Maintenance windows
+* Debugging Kueue issues
+* Preventing automatic changes during investigations
+
+=== Verify
+
+✓ Toggle switch responds to clicks +
+✓ Status indicator updates immediately +
+✓ Sync behavior changes as expected
+
+== Exercise 6: Delete Individual Bookings
+
+Administrators can delete any booking, including consumed (Kueue) bookings.
+
+. Use the filters to find a specific booking.
+
+. In the Actions column, click the **Delete** button.
+
+. Confirm the deletion in the dialog.
+
+. Verify the booking is removed from the table.
+
+NOTE: If you delete a consumed (Kueue) booking, it will be recreated on the next sync cycle if the workload is still active.
+
+=== Verify
+
+✓ Delete button appears for all bookings +
+✓ Confirmation dialog prevents accidents +
+✓ Booking is removed after confirmation
+
+== Exercise 7: Delete All Bookings
+
+Remove all bookings at once (use with extreme caution).
+
+WARNING: This action deletes ALL bookings in the system. It cannot be undone. Export a backup first!
+
+. In the Controls card, click **Delete All**.
+
+. Review the confirmation dialog carefully — it shows the total count of bookings to be deleted.
+
+. Type "DELETE" (or confirm as prompted) to proceed, or click **Cancel** to abort.
+
+. After deletion:
+** The table becomes empty
+** Consumed bookings reappear on the next Kueue sync cycle (if sync is enabled)
+** Reserved bookings are permanently deleted
+
+TIP: This feature is useful for:
+
+* Starting fresh after testing
+* Cleaning up before major configuration changes
+* Emergency resets (with backup restored afterward)
+
+=== Verify
+
+✓ Delete All button is prominently marked +
+✓ Confirmation requires explicit action +
+✓ Bookings are removed after confirmation
+
+== Exercise 8: Sort the Bookings Table
+
+The bookings table supports column sorting.
+
+. Click on any column header to sort:
+** User: Alphabetically by username
+** Resource: By resource type name
+** Date: Chronologically
+** Created: By timestamp
+
+. Click the same column again to reverse the sort order.
+
+. Use sorting in combination with filters to find specific bookings quickly.
+
+=== Verify
+
+✓ Column headers are clickable for sorting +
+✓ Sort indicator (arrow) shows current sort +
+✓ Second click reverses the order
+
+== Exercise 9: Auto-Refresh
+
+The admin dashboard automatically refreshes to show the latest data.
+
+. Observe that the page updates every 30 seconds automatically.
+
+. To manually refresh, click the **Refresh** button in the header.
+
+. You can also refresh by pressing F5 in the browser, though this reloads the entire page.
+
+TIP: The auto-refresh ensures you always see the current state of bookings, including newly created consumed bookings from Kueue sync.
+
+=== Verify
+
+✓ Data updates automatically +
+✓ Manual refresh button works +
+✓ Last update time is reflected
+
+== Exercise 10: Monitor via CLI
+
+Administrators can also monitor and manage bookings via the API.
+
+. Port-forward to access the API:
++
+[.copypaste]
+[source,bash,subs="attributes"]
+----
+oc port-forward svc/{gpu_booking_plugin_name} 9443:9443 -n {gpu_booking_namespace} &
+----
+
+. List all bookings via API:
++
+[.copypaste]
+[source,bash]
+----
+curl -sk https://localhost:9443/api/admin/bookings | jq '.bookings | length'
+----
+
+. Check sync status:
++
+[.copypaste]
+[source,bash]
+----
+curl -sk https://localhost:9443/api/admin/sync | jq .
+----
+
+. Clean up port-forward:
++
+[.copypaste]
+[source,bash]
+----
+kill %1
+----
+
+=== Verify
+
+✓ API returns booking data +
+✓ Sync status is accessible +
+✓ JSON data can be parsed with jq
+
+== Best Practices for Administrators
+
+=== Regular Backups
+
+Schedule regular database exports:
+
+[.copypaste]
+[source,bash,subs="attributes"]
+----
+# Example: Export weekly via cron
+oc exec deploy/{gpu_booking_plugin_name} -n {gpu_booking_namespace} -- \
+  cat /app/data/bookings.db > /backup/gpu-bookings-$(date +%Y%m%d).db
+----
+
+=== Monitoring
+
+Set up alerts for:
+
+* Plugin pod restart loops
+* Database storage approaching capacity
+* High error rates in logs
+
+=== Capacity Planning
+
+Use the admin dashboard data to:
+
+* Identify peak usage patterns
+* Plan GPU cluster expansion
+* Adjust booking windows based on demand
+
+== Module Summary
+
+In this module, you learned how to:
+
+* Navigate the admin dashboard interface
+* Filter bookings by resource, source, and text search
+* Export and import the booking database
+* Control reservation sync without redeploying
+* Delete individual or all bookings
+* Sort and navigate the bookings table
+* Monitor the system via API
+
+== Next Steps
+
+You have completed all the hands-on modules. Proceed to xref:07-conclusion.adoc[Conclusion] to review what you learned and explore additional resources.

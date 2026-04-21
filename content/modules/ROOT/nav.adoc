@@ -1,0 +1,15 @@
+* xref:index.adoc[Welcome]
+
+.Workshop
+* xref:01-overview.adoc[Workshop Overview]
+
+.Modules
+* xref:getting-connected.adoc[Getting Connected]
+* xref:02-module-01-architecture.adoc[Module 1: Architecture]
+* xref:03-module-02-deployment.adoc[Module 2: Deployment]
+* xref:04-module-03-bookings.adoc[Module 3: Creating Bookings]
+* xref:05-module-04-kueue.adoc[Module 4: Kueue Integration]
+* xref:06-module-05-admin.adoc[Module 5: Administration]
+
+.Wrap-up
+* xref:07-conclusion.adoc[Conclusion]

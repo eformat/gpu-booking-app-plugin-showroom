@@ -1,0 +1,378 @@
+= Module 2: Deployment
+:navtitle: Module 2: Deployment
+:toc: macro
+:toclevels: 1
+:icons: font
+
+toc::[]
+
+== Introduction
+
+In this module, you will deploy the GPU Booking Plugin to your OpenShift cluster using Helm. You will configure the plugin for your environment and verify it is working correctly.
+
+== Prerequisites
+
+Before deploying, ensure you have:
+
+* An OpenShift cluster with cluster-admin access
+* NVIDIA GPU Operator installed and configured
+* Kueue installed on the cluster
+* Helm 3.x installed
+* The `gpu-booking` namespace created
+
+== Exercise 1: Create a Custom Values File
+
+While the default values.yaml provides a starting point, you should customize the deployment for your environment.
+
+. Create a custom values file:
++
+[.copypaste]
+[source,bash]
+----
+cat > ~/gpu-booking-values.yaml << 'EOF'
+# Custom values for GPU Booking Plugin
+
+replicaCount: 1
+
+image:
+  repository: quay.io/eformat/gpu-booking-plugin
+  tag: latest
+  pullPolicy: Always
+
+plugin:
+  name: gpu-booking-plugin
+  displayName: "GPU Booking Plugin"
+  port: 9443
+
+serviceAccount:
+  create: true
+  name: gpu-booking-plugin
+
+service:
+  type: ClusterIP
+  port: 9443
+
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 2Gi
+  mountPath: /app/data
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+tls:
+  enabled: true
+
+enablePlugin: true
+
+kueue:
+  syncEnabled: true
+  syncIntervalSeconds: 30
+  syncDays: 7
+
+bookingWindowDays: 30
+
+gpuConfig:
+  resources:
+    - name: "H200 Full GPU"
+      type: "nvidia.com/gpu"
+      count: 8
+      share: 0.0625
+      gpuEquivalent: 1.0
+    - name: "MIG 3g.71gb"
+      type: "nvidia.com/mig-3g.71gb"
+      count: 8
+      share: 0.03125
+      gpuEquivalent: 0.5
+    - name: "MIG 2g.35gb"
+      type: "nvidia.com/mig-2g.35gb"
+      count: 8
+      share: 0.015625
+      gpuEquivalent: 0.25
+    - name: "MIG 1g.18gb"
+      type: "nvidia.com/mig-1g.18gb"
+      count: 16
+      share: 0.0078125
+      gpuEquivalent: 0.125
+  totalCpu: 316
+  totalMemory: 3460
+EOF
+----
+
+. Review the values file:
++
+[.copypaste]
+[source,bash]
+----
+cat ~/gpu-booking-values.yaml
+----
+
+Adjust the `gpuConfig.resources` section to match your cluster's actual GPU configuration. The values shown are for an 8x H200 node.
+
+=== Verify
+
+✓ Values file created with appropriate GPU configuration +
+✓ Resource counts match your cluster's GPU capacity
+
+== Exercise 2: Install the Helm Chart
+
+Now deploy the plugin using Helm.
+
+NOTE: If you are using the local chart from the cloned repository, use the local path. Otherwise, ensure you have access to the chart repository.
+
+. Deploy the plugin:
++
+[.copypaste]
+[source,bash,subs="attributes"]
+----
+cd ~/gpu-booking-app-plugin && helm upgrade --install {gpu_booking_plugin_name} ./chart \
+  --namespace {gpu_booking_namespace} \
+  --values ~/gpu-booking-values.yaml
+----
+
+. Watch the deployment progress:
++
+[.copypaste]
+[source,bash,subs="attributes"]
+----
+oc rollout status deployment/{gpu_booking_plugin_name} -n {gpu_booking_namespace} --timeout=5m
+----
+
+. Verify the pod is running:
++
+[.copypaste]
+[source,bash,subs="attributes"]
+----
+oc get pods -n {gpu_booking_namespace}
+----
+
+=== Verify
+
+✓ Helm release installed/updated successfully +
+✓ Pod status is Running +
+✓ No CrashLoopBackOff or Error states
+
+== Exercise 3: Verify ConsolePlugin Registration
+
+After the plugin pod is running, verify it is registered with the OpenShift Console.
+
+. Check the ConsolePlugin resource:
++
+[.copypaste]
+[source,bash,subs="attributes"]
+----
+oc get consoleplugin {gpu_booking_plugin_name}
+----
+
+. Describe the ConsolePlugin to see its configuration:
++
+[.copypaste]
+[source,bash,subs="attributes"]
+----
+oc describe consoleplugin {gpu_booking_plugin_name}
+----
+
+. Check the console pods for plugin loading:
++
+[.copypaste]
+[source,bash]
+----
+oc get pods -n openshift-console -l app=console
+----
+
+NOTE: The console pods may restart to load the new plugin. This typically takes 1-2 minutes.
+
+. Wait for the console pods to be running:
++
+[.copypaste]
+[source,bash]
+----
+oc wait --for=condition=Ready pod -l app=console -n openshift-console --timeout=300s
+----
+
+=== Verify
+
+✓ ConsolePlugin resource exists and is healthy +
+✓ OpenShift Console pods are running +
+✓ Console reports plugin as loaded (check pod logs if needed)
+
+== Exercise 4: Access the Plugin in the Console
+
+Now let's access the plugin through the OpenShift Console.
+
+. Get the OpenShift Console URL:
++
+[.copypaste]
+[source,bash]
+----
+oc get route console -n openshift-console -o jsonpath='https://{.spec.host}{"\n"}'
+----
+
+. Open the OpenShift Console in your browser using the URL from the previous step.
+
+. Log in with your OpenShift credentials.
+
+. In the Administrator perspective, look for the "GPU Booking" section in the left navigation menu.
+
+. Click on "Bookings" under the GPU Booking section.
+
+You should see the GPU Booking interface with:
+
+* A mini-calendar showing the current month
+* Resource selector cards for different GPU types
+* Empty booking grids (since no bookings exist yet)
+
+=== Verify
+
+✓ GPU Booking appears in the console navigation +
+✓ Bookings page loads without errors +
+✓ Calendar and resource selector are visible
+
+== Exercise 5: Verify Backend API
+
+Let's test the backend API directly to ensure it's functioning.
+
+. Port-forward to the plugin service:
++
+[.copypaste]
+[source,bash,subs="attributes"]
+----
+oc port-forward svc/{gpu_booking_plugin_name} 9443:9443 -n {gpu_booking_namespace} &
+----
+
+. Test the health endpoint:
++
+[.copypaste]
+[source,bash]
+----
+curl -sk https://localhost:9443/api/health
+----
+
+. Get the plugin configuration:
++
+[.copypaste]
+[source,bash]
+----
+curl -sk https://localhost:9443/api/config | jq .
+----
+
+. List current bookings (should be empty initially):
++
+[.copypaste]
+[source,bash]
+----
+curl -sk https://localhost:9443/api/bookings | jq .
+----
+
+. Stop the port-forward:
++
+[.copypaste]
+[source,bash]
+----
+kill %1
+----
+
+=== Verify
+
+✓ Health endpoint returns success +
+✓ Config endpoint returns GPU resource definitions +
+✓ Bookings endpoint returns an array (may be empty)
+
+== Exercise 6: Configure RBAC for Admin Access
+
+To access the admin dashboard, you need appropriate RBAC permissions.
+
+. Create a ClusterRole for GPU Booking admins:
++
+[.copypaste]
+[source,bash]
+----
+cat > ~/gpu-booking-admin-role.yaml << 'EOF'
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gpu-booking-admin
+rules:
+- apiGroups: ["gpubooking.openshift.io"]
+  resources: ["bookings"]
+  verbs: ["get", "list", "create", "update", "delete", "watch"]
+- apiGroups: ["kueue.x-k8s.io"]
+  resources: ["clusterqueues", "localqueues", "workloads"]
+  verbs: ["get", "list", "watch"]
+EOF
+oc apply -f ~/gpu-booking-admin-role.yaml
+----
+
+. Bind the role to your user:
++
+[.copypaste]
+[source,bash,subs="attributes"]
+----
+oc create clusterrolebinding gpu-booking-admin-binding \
+  --clusterrole=gpu-booking-admin \
+  --user={user}
+----
+
+. Verify the binding:
++
+[.copypaste]
+[source,bash]
+----
+oc get clusterrolebinding gpu-booking-admin-binding
+----
+
+=== Verify
+
+✓ ClusterRole created successfully +
+✓ ClusterRoleBinding created successfully +
+✓ User has admin permissions for GPU Booking
+
+== Troubleshooting
+
+If the plugin doesn't appear in the console:
+
+1. Check the plugin pod logs:
++
+[.copypaste]
+[source,bash,subs="attributes"]
+----
+oc logs -n {gpu_booking_namespace} -l app.kubernetes.io/name=gpu-booking-plugin
+----
+
+2. Verify the ConsolePlugin service reference:
++
+[.copypaste]
+[source,bash,subs="attributes"]
+----
+oc get consoleplugin {gpu_booking_plugin_name} -o yaml | grep -A 10 service:
+----
+
+3. Check console pod logs for plugin loading errors:
++
+[.copypaste]
+[source,bash]
+----
+oc logs -n openshift-console -l app=console | grep -i gpu
+----
+
+== Module Summary
+
+In this module, you:
+
+* Created a custom Helm values file for your environment
+* Deployed the GPU Booking Plugin using Helm
+* Verified the plugin registration with OpenShift Console
+* Accessed the plugin UI and verified it loads correctly
+* Tested the backend API endpoints
+* Configured RBAC for admin access
+
+== Next Steps
+
+The plugin is now deployed and ready to use. Proceed to xref:04-module-03-bookings.adoc[Module 3: Creating Bookings] to learn how to reserve GPU resources.
